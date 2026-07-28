@@ -1,0 +1,64 @@
+{
+  "name": "maestro-ia",
+  "version": "1.0.0",
+  "description": "Asistente de estudio adaptativo para TDAH",
+  "main": "electron.cjs",
+  "type": "module",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win",
+    "build:portable": "electron-builder --win portable",
+    "test": "jest --experimental-vm-modules",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "playwright show-report"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^7.0.0",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.0.0",
+    "jest": "^30.4.2",
+    "jest-environment-jsdom": "^30.4.1"
+  },
+  "build": {
+    "appId": "com.maestro.ia",
+    "productName": "Maestro IA",
+    "directories": {
+      "output": "dist"
+    },
+    "asar": true,
+    "files": [
+      "index.html",
+      "app.mjs",
+      "electron.cjs"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": null,
+      "certificateFile": "${env.CSC_LINK}",
+      "certificatePassword": "${env.CSC_KEY_PASSWORD}",
+      "publisherName": "Maestro IA",
+      "verifyUpdateCodeSignature": false
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "notarize": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

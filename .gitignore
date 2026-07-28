@@ -1,0 +1,45 @@
+# Node.js dependencies
+node_modules/
+
+# Electron build outputs
+dist/
+build/
+
+# Environment variables
+.env
+.env.*
+
+# Logs
+logs
+*.log
+
+# Process / runtime artifacts
+*.pid
+nul
+
+# One-off extraction scratch (verbatim body dumps from index.html)
+_app_body*.js
+
+# Userdata and local app storage
+localStorage/
+userData/
+crashDumps/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Ollama data (if mounted locally)
+ollama/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS-specific files
+._*

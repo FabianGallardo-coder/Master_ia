@@ -1,0 +1,9 @@
+{
+  "enabledPlugins": {
+    "docker-development@claude-code-skills": true,
+    "github@claude-plugins-official": true,
+    "prompt-governance@claude-code-skills": true,
+    "skill-creator@claude-plugins-official": true,
+    "ui-theme-designer@claude-plugins-official": true
+  }
+}
