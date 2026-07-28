@@ -4,7 +4,7 @@
 //
 // Browser: loaded via <script type="module" src="app.mjs"></script>;
 // the IIFE at the bottom auto-attaches every named function to window
-// so the inline onclick="..." attributes in index.html keep working.
+// and delegation listeners resolve data-action attributes (CSP-safe).
 // Tests: import { foo } from "../app.mjs" directly.
 
 const MODES = [
@@ -94,6 +94,13 @@ const INITIAL_STATE = JSON.parse(JSON.stringify(state));
 let timerInterval = null;
 let breakInterval = null;
 let ollamaAvailable = false;
+let alertAudio = null;
+function preloadAlert() {
+    if (typeof Audio !== 'undefined' && !alertAudio) {
+        alertAudio = new Audio('assets/sound/alert.mp3');
+        alertAudio.load();
+    }
+}
 
 // Timer functions
 function getMode() { return MODES.find(m => m.id === state.selectedMode); }
@@ -112,7 +119,7 @@ function selectMode(modeId) {
 function renderModes() {
     const container = document.getElementById('modeSelector');
     container.innerHTML = MODES.map(m => `
-        <button class="mode-btn ${m.id === state.selectedMode ? 'active' : ''}" onclick="selectMode('${m.id}')">
+        <button class="mode-btn ${m.id === state.selectedMode ? 'active' : ''}" data-action="selectMode" data-args='["${m.id}"]'>
             ${m.name}
             <span class="mode-times">${m.work}m / ${m.break}m</span>
         </button>
@@ -183,7 +190,10 @@ function resetTimer() {
 
 function timerComplete() {
     state.timerRunning = false;
-    try { new Audio('assets/sound/alert.mp3').play(); } catch (_) {}
+    try {
+        if (alertAudio) { alertAudio.currentTime = 0; alertAudio.play(); }
+        else { new Audio('assets/sound/alert.mp3').play(); }
+    } catch (_) {}
 
     if (!state.isBreak) {
         state.sessionsToday++;
@@ -198,6 +208,7 @@ function timerComplete() {
     } else {
         document.getElementById('breakOverlay').classList.remove('active');
         clearInterval(breakInterval);
+        state.isBreak = false;
         const mode = getMode();
         state.timeRemaining = mode.work * 60;
         state.totalTime = mode.work * 60;
@@ -236,7 +247,6 @@ function startBreak() {
     }, 1000);
 }
 
-// duplicate showTimerCompleteModal removed (verbatim copy of the active version below)
 function updateTaskListForDay(dayIndex) {
     const saved = localStorage.getItem(`maestro_schedule_${dayIndex}`);
     const taskSelect = document.getElementById('timerCompleteTask');
@@ -254,79 +264,7 @@ function updateTaskListForDay(dayIndex) {
     document.getElementById('taskDetailSelection').style.display = tasks.length > 0 ? 'block' : 'none';
 }
 
-function assignTimerToSelection(workMinutes) {
-    const type = document.getElementById('timerCompleteType').value;
-    const blocks = parseInt(document.getElementById('timerCompleteBlocks').value) || 1;
 
-    if (type === 'skill') {
-        const skillId = document.getElementById('timerCompleteSkill').value;
-        if (!skillId) {
-            showToast('Por favor selecciona una skill', 'error');
-            return;
-        }
-
-        const skill = state.skills.find(s => s.id === skillId);
-        if (skill) {
-            // Add a task to the skill representing the completed work
-            skill.tasks.push({
-                text: `Sesión de estudio completada (${workMinutes} min)`,
-                done: true
-            });
-
-            // Recalculate progress
-            const completed = skill.tasks.filter(t => t.done).length;
-            skill.progress = skill.tasks.length > 0 ? Math.round((completed / skill.tasks.length) * 100) : 0;
-            skill.status = skill.progress === 100 ? 'done' : skill.progress > 0 ? 'progress' : 'pending';
-
-            renderSkills();
-            saveState();
-
-            // Record session
-            recordSession('skill', workMinutes, skill.name, `Assigned ${workMinutes} minute timer session to skill`);
-
-            showToast(`Tiempo asignado a ${skill.name}`, 'success');
-        }
-    } else if (type === 'task') {
-        const dayIndex = parseInt(document.getElementById('timerCompleteDay').value);
-        const taskIndex = parseInt(document.getElementById('timerCompleteTask').value);
-
-        if (isNaN(dayIndex) || isNaN(taskIndex)) {
-            showToast('Por favor selecciona un día y una tarea', 'error');
-            return;
-        }
-
-        const saved = localStorage.getItem(`maestro_schedule_${dayIndex}`);
-        if (!saved) {
-            showToast('No hay tareas para este día', 'error');
-            return;
-        }
-
-        const tasks = JSON.parse(saved);
-        const task = tasks[taskIndex];
-        if (!task) {
-            showToast('Tarea no encontrada', 'error');
-            return;
-        }
-
-        // Mark task as completed and add time blocks
-        task.completed = true;
-        task.blocks = (task.blocks || 0) + blocks;
-
-        localStorage.setItem(`maestro_schedule_${dayIndex}`, JSON.stringify(tasks));
-        renderSchedule();
-        saveState();
-
-        // Record session
-        recordSession('task', workMinutes, task.title, `Assigned ${workMinutes} minute timer session to task`);
-
-        showToast(`Tiempo asignado a tarea "${task.title}"`, 'success');
-    }
-
-    closeModal();
-
-    // Start break after assigning
-    startBreak();
-}
 
 function endBreak() {
     clearInterval(breakInterval);
@@ -352,7 +290,7 @@ function showTimerCompleteModal(minutesEarned) {
 
             <div class="form-group">
                 <label for="linkType">Vincular a:</label>
-                <select id="linkType">
+                <select id="linkType" data-action="linkTypeChanged">
                     <option value="none">Nada (solo energía)</option>
                     <option value="skill">Skill</option>
                     <option value="task">Tarea de la agenda</option>
@@ -372,20 +310,19 @@ function showTimerCompleteModal(minutesEarned) {
             </div>
 
             <div class="form-group">
-                <button type="button" class="modal-btn modal-btn-primary" onclick="completeTimerWithLinking()">Confirmar y otorgar XP</button>
-                <button type="button" class="modal-btn modal-btn-secondary" onclick="completeTimerWithoutLinking()">Solo energía</button>
+                <button type="button" class="modal-btn modal-btn-primary" data-action="completeTimerWithLinking">Confirmar y otorgar XP</button>
+                <button type="button" class="modal-btn modal-btn-secondary" data-action="completeTimerWithoutLinking">Solo energía</button>
             </div>
         </div>
     `;
 
     openModal(modalContent, 'Sesión Completada');
+}
 
-    // Handle linking type change
-    document.getElementById('linkType').onchange = function() {
-        const type = this.value;
-        document.getElementById('skillSelector').style.display = type === 'skill' ? 'block' : 'none';
-        document.getElementById('taskSelector').style.display = type === 'task' ? 'block' : 'none';
-    };
+function linkTypeChanged() {
+    const type = document.getElementById('linkType').value;
+    document.getElementById('skillSelector').style.display = type === 'skill' ? 'block' : 'none';
+    document.getElementById('taskSelector').style.display = type === 'task' ? 'block' : 'none';
 }
 
 function completeTimerWithLinking() {
@@ -496,15 +433,15 @@ function renderSkills() {
                     <div class="skill-type">${skill.type}</div>
                 </div>
                 <div class="skill-actions">
-                    <select class="skill-status status-${skill.status}" onchange="updateStatus('${skill.id}', this.value)">
+                    <select class="skill-status status-${skill.status}" data-action="updateStatus" data-args='["${skill.id}"]'>
                         <option value="pending" ${skill.status === 'pending' ? 'selected' : ''}>Pendiente</option>
                         <option value="progress" ${skill.status === 'progress' ? 'selected' : ''}>En progreso</option>
                         <option value="done" ${skill.status === 'done' ? 'selected' : ''}>Completado</option>
                         <option value="blocked" ${skill.status === 'blocked' ? 'selected' : ''}>Bloqueado</option>
                     </select>
-                    <button class="timer-btn timer-btn-secondary" onclick="updateSkill('${skill.id}')" title="Editar habilidad">✏️</button>
-                    <button class="timer-btn timer-btn-secondary" onclick="deleteSkill('${skill.id}')" title="Eliminar habilidad">🗑️</button>
-                    <button class="timer-btn timer-btn-secondary" onclick="addSkillTask('${skill.id}')" title="Agregar tarea">➕</button>
+                    <button class="timer-btn timer-btn-secondary" data-action="updateSkill" data-args='["${skill.id}"]' title="Editar habilidad">✏️</button>
+                    <button class="timer-btn timer-btn-secondary" data-action="deleteSkill" data-args='["${skill.id}"]' title="Eliminar habilidad">🗑️</button>
+                    <button class="timer-btn timer-btn-secondary" data-action="addSkillTask" data-args='["${skill.id}"]' title="Agregar tarea">➕</button>
                 </div>
             </div>
             <div class="progress-bar">
@@ -514,9 +451,9 @@ function renderSkills() {
             <div class="skill-tasks">
                 ${skill.tasks.map((task, i) => `
                     <div class="task-item ${task.done ? 'completed' : ''}" style="display: flex; align-items: center; margin-top: 4px;">
-                        <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleTask('${skill.id}', ${i})" style="margin-right: 8px;">
+                        <input type="checkbox" ${task.done ? 'checked' : ''} data-action="toggleTask" data-args='["${skill.id}", ${i}]' style="margin-right: 8px;">
                         <span style="flex-grow: 1;">${task.text}</span>
-                        <button class="task-delete" onclick="deleteTaskFromSkill('${skill.id}', ${i}, event)">×</button>
+                        <button class="task-delete" data-action="deleteTaskFromSkill" data-args='["${skill.id}", ${i}]' data-stop="1">×</button>
                     </div>
                 `).join('')}
             </div>
@@ -531,14 +468,14 @@ function renderSkills() {
     grid.innerHTML = `
         <div class="skills-header">
             <h2>Skills</h2>
-            <button class="modal-btn modal-btn-primary" onclick="addSkill()">+ Nueva Skill</button>
+            <button class="modal-btn modal-btn-primary" data-action="addSkill">+ Nueva Skill</button>
         </div>
         ${skillsContent}
     `;
 }
 
 function deleteTaskFromSkill(skillId, taskIndex, event) {
-    event.stopPropagation();
+    if (event) event.stopPropagation();
     const skill = state.skills.find(s => s.id === skillId);
     if (!skill) return;
 
@@ -585,7 +522,7 @@ function addSkill() {
             </div>
             <div class="form-group">
                 <button type="submit" class="modal-btn modal-btn-primary">Guardar</button>
-                <button type="button" class="modal-btn modal-btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="button" class="modal-btn modal-btn-secondary" data-action="closeModal">Cancelar</button>
             </div>
         </form>
     `;
@@ -640,7 +577,7 @@ function updateSkill(skillId) {
             </div>
             <div class="form-group">
                 <button type="submit" class="modal-btn modal-btn-primary">Guardar</button>
-                <button type="button" class="modal-btn modal-btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="button" class="modal-btn modal-btn-secondary" data-action="closeModal">Cancelar</button>
             </div>
         </form>
     `;
@@ -679,8 +616,8 @@ function deleteSkill(skillId) {
         <p>¿Estás seguro de que quieres eliminar la habilidad "<strong>${skill.name}</strong>"?</p>
         <p>Esta acción no se puede deshacer.</p>
         <div class="form-group">
-            <button type="button" class="modal-btn modal-btn-danger" onclick="confirmDeleteSkill('${skillId}')">Eliminar</button>
-            <button type="button" class="modal-btn modal-btn-secondary" onclick="closeModal()">Cancelar</button>
+            <button type="button" class="modal-btn modal-btn-danger" data-action="confirmDeleteSkill" data-args='["${skillId}"]'>Eliminar</button>
+            <button type="button" class="modal-btn modal-btn-secondary" data-action="closeModal">Cancelar</button>
         </div>
     `;
 
@@ -710,7 +647,7 @@ function addSkillTask(skillId) {
             </div>
             <div class="form-group">
                 <button type="submit" class="modal-btn modal-btn-primary">Guardar</button>
-                <button type="button" class="modal-btn modal-btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="button" class="modal-btn modal-btn-secondary" data-action="closeModal">Cancelar</button>
             </div>
         </form>
     `;
@@ -771,7 +708,7 @@ function renderSchedule() {
             <div class="day-column">
                 <div class="day-name ${i === todayIndex ? 'today' : ''}">${day}</div>
                 ${hasTasks ? tasks : '<div class="empty-state">No hay tareas para este día<br>Haz clic en "+ Añadir" para crear una tarea</div>'}
-                <button class="add-task-btn" onclick="openAddTaskModal(${i})">+ Añadir</button>
+                <button class="add-task-btn" data-action="openAddTaskModal" data-args='[${i}]'>+ Añadir</button>
             </div>
         `;
     }).join('');
@@ -832,14 +769,14 @@ function renderCalendarView() {
         const dayNum = cell.date.getDate();
         const tasksHtml = tasks.map((t, idx) =>
             `<div class="calendar-task ${t.completed ? 'completed' : ''}"
-                  onclick="event.stopPropagation(); toggleCalendarTask('${dateStr}', ${idx})"
+                  data-action="toggleCalendarTask" data-args='["${dateStr}", ${idx}]' data-stop="1"
                   title="${(t.title || '').replace(/"/g, '&quot;')}">${t.title || ''}</div>`
         ).join('');
         const count = tasks.length;
         return `
             <div class="calendar-day ${cell.otherMonth ? 'other-month' : ''} ${isToday ? 'today' : ''}"
                  data-date="${dateStr}" data-count="${count}"
-                 onclick="openCalendarTaskModal('${dateStr}')">
+                 data-action="openCalendarTaskModal" data-args='["${dateStr}"]'>
                 <div class="calendar-day-num">${dayNum}</div>
                 ${tasksHtml}
             </div>`;
@@ -874,7 +811,7 @@ function openCalendarTaskModal(dateStr) {
             </div>
             <div class="form-group">
                 <button type="submit" class="modal-btn modal-btn-primary">Guardar</button>
-                <button type="button" class="modal-btn modal-btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="button" class="modal-btn modal-btn-secondary" data-action="closeModal">Cancelar</button>
             </div>
         </form>
     `;
@@ -936,7 +873,7 @@ function getDayTasks(dayIndex) {
     const saved = localStorage.getItem(`maestro_schedule_${dayIndex}`);
     if (!saved) return '';
     const tasks = JSON.parse(saved);
-    return tasks.map((t, index) => `<div class="schedule-item ${t.completed ? 'completed' : ''}" onclick="toggleTaskCompletion(${dayIndex}, ${index})">
+    return tasks.map((t, index) => `<div class="schedule-item ${t.completed ? 'completed' : ''}" data-action="toggleTaskCompletion" data-args='[${dayIndex}, ${index}]'>
         <div class="schedule-item-content">
             <div class="schedule-item-title">${t.title}</div>
             <div class="schedule-item-details">
@@ -944,7 +881,7 @@ function getDayTasks(dayIndex) {
                 <span class="schedule-item-blocks">${t.blocks} bloques</span>
             </div>
         </div>
-        <button class="schedule-item-delete" onclick="deleteTask(${dayIndex}, ${index}, event)">×</button>
+        <button class="schedule-item-delete" data-action="deleteTask" data-args='[${dayIndex}, ${index}]' data-stop="1">×</button>
     </div>`).join('');
 }
 
@@ -970,7 +907,7 @@ function openAddTaskModal(dayIndex) {
             </div>
             <div class="form-group">
                 <button type="submit" class="modal-btn modal-btn-primary">Guardar</button>
-                <button type="button" class="modal-btn modal-btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="button" class="modal-btn modal-btn-secondary" data-action="closeModal">Cancelar</button>
             </div>
         </form>
     `;
@@ -997,7 +934,7 @@ function openAddTaskModal(dayIndex) {
 }
 
 function deleteTask(dayIndex, taskIndex, event) {
-    event.stopPropagation();
+    if (event) event.stopPropagation();
     if (!confirm('¿Eliminar esta tarea?')) return;
     const saved = localStorage.getItem(`maestro_schedule_${dayIndex}`);
     if (!saved) return;
@@ -1494,16 +1431,52 @@ function clearEvaluationResults() {
 }
 
 
+// ── Delegation handler: resolves data-action attributes CSP-safe (no inline scripts).
+const _ACTION_FNS = {
+  selectMode, completeTimerWithLinking, completeTimerWithoutLinking,
+  updateSkill, deleteSkill, addSkillTask, deleteTaskFromSkill,
+  addSkill, closeModal, confirmDeleteSkill, toggleTask, applyPreset, updateStatus,
+  openAddTaskModal, toggleCalendarTask, openCalendarTaskModal,
+  toggleTaskCompletion, deleteTask, saveCalendarTask, deleteCalendarTask,
+  saveSettings, testConnection, runEvaluation, clearEvaluationResults, clearAllData,
+  linkTypeChanged,
+};
+function _delegatedEvent(e) {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  if (el.dataset.stop) e.stopPropagation();
+  const fn = _ACTION_FNS[el.dataset.action];
+  if (!fn) return;
+  const raw = el.dataset.args;
+  const args = raw ? JSON.parse(raw) : [];
+  if (e.type === 'change' && el.tagName === 'SELECT') args.push(el.value);
+  fn(...args);
+}
+
 // ── Bridge: copy every named function onto a window-like object so
 // inline onclick="foo()" attributes in index.html resolve.
-const BRIDGE_FNS = [
-  'getMode','selectMode','renderModes','updateTimerDisplay','startTimer','pauseTimer','resetTimer','timerComplete','startBreak','showTimerCompleteModal','updateTaskListForDay','assignTimerToSelection','endBreak','completeTimerWithLinking','completeTimerWithoutLinking','updateStats','renderSkills','deleteTaskFromSkill','updateStatus','toggleTask','addSkill','updateSkill','deleteSkill','confirmDeleteSkill','addSkillTask','renderSchedule','ymd','monthLabel','loadCalendarTasks','renderCalendarView','switchCalendarView','openCalendarTaskModal','saveCalendarTask','toggleCalendarTask','deleteCalendarTask','getDayTasks','openAddTaskModal','deleteTask','toggleTaskCompletion','saveTask','checkOllama','sendMessage','addMessage','saveSettings','loadSettings','showSettingsStatus','applyPreset','saveState','recordSession','loadState','showToast','createToastContainer','openModal','closeModal','initEvaluationConfigs','runEvaluation','clearEvaluationResults'
-];
+// NOTE: ESM module-scoped functions are NOT on globalThis, so we
+// reference them directly via an object map rather than string lookups.
+const BRIDGE_MAP = {
+  ..._ACTION_FNS,
+  getMode, renderModes, updateTimerDisplay,
+  startTimer, pauseTimer, resetTimer, timerComplete,
+  startBreak, showTimerCompleteModal, updateTaskListForDay,
+  endBreak, completeTimerWithLinking,
+  completeTimerWithoutLinking, updateStats,
+  renderSkills, renderSchedule, ymd, monthLabel,
+  loadCalendarTasks, renderCalendarView, switchCalendarView,
+  checkOllama, sendMessage, addMessage,
+  loadSettings, showSettingsStatus, applyPreset,
+  saveState, recordSession, loadState,
+  showToast, createToastContainer, openModal, closeModal,
+  initEvaluationConfigs, preloadAlert,
+};
 function attachToWindow(win) {
   const w = win || (typeof window !== "undefined" ? window : null);
   if (!w) return;
-  for (const f of BRIDGE_FNS) {
-    if (typeof globalThis[f] === "function") w[f] = globalThis[f];
+  for (const [name, fn] of Object.entries(BRIDGE_MAP)) {
+    if (typeof fn === "function") w[name] = fn;
   }
 }
 
@@ -1534,7 +1507,9 @@ function initApp(win, doc) {
   on($("temperature"),   "input",  e => { const v = $("tempValue"); if (v) v.textContent = e.target.value; });
   on($("topP"),          "input",  e => { const v = $("topPValue");  if (v) v.textContent = e.target.value; });
   on($("devModeToggle"), "change", e => { const s = $("devModeSection"); if (s) s.style.display = e.target.checked ? "block" : "none"; const l = $("devModeToggleLabel"); if (l) l.textContent = e.target.checked ? "Desactivar modo de prueba para desarrolladores" : "Activar modo de prueba para desarrolladores"; state.settings.devMode = e.target.checked; saveState(); });
-  d.querySelectorAll(".preset-btn").forEach(btn => on(btn, "click", () => { const a = btn.getAttribute("onclick"); if (a) { const r = /applyPreset\(['\"]+([^'\"]+)['"]+\)/.exec(a); if (r) applyPreset(r[1]); } }));
+  // Delegate all [data-action] events (CSP-safe replacement for inline onclick/onchange)
+  d.addEventListener('click', _delegatedEvent);
+  d.addEventListener('change', _delegatedEvent);
 
   // Initial paint — only when running in the actual document so tests can skip.
   if (typeof window !== "undefined" && d === window.document) {
@@ -1542,13 +1517,14 @@ function initApp(win, doc) {
     renderModes();
     renderSkills();
     renderSchedule();
-    d.querySelectorAll(".schedule-toggle button").forEach(b => { b.onclick = () => switchCalendarView(b.dataset.view); });
-    const prev = $("calPrev"); if (prev) prev.onclick = () => { state.calendarCursor.setMonth(state.calendarCursor.getMonth() - 1); renderCalendarView(); };
-    const next = $("calNext"); if (next) next.onclick = () => { state.calendarCursor.setMonth(state.calendarCursor.getMonth() + 1); renderCalendarView(); };
+    d.querySelectorAll(".schedule-toggle button").forEach(b => { b.addEventListener('click', () => switchCalendarView(b.dataset.view)); });
+    const prev = $("calPrev"); if (prev) prev.addEventListener('click', () => { state.calendarCursor.setMonth(state.calendarCursor.getMonth() - 1); renderCalendarView(); });
+    const next = $("calNext"); if (next) next.addEventListener('click', () => { state.calendarCursor.setMonth(state.calendarCursor.getMonth() + 1); renderCalendarView(); });
     updateTimerDisplay();
     updateStats();
     loadSettings();
     checkOllama();
+    preloadAlert();
     setInterval(checkOllama, 30000);
     if (typeof location !== "undefined" && location.protocol === "file:") {
       const s = $("statusUrl"); if (s) s.textContent = "Abre via http://localhost:8081 para que Ollama funcione";
@@ -1604,7 +1580,7 @@ export {
   getMode, selectMode, renderModes, updateTimerDisplay,
   startTimer, pauseTimer, resetTimer, timerComplete,
   startBreak, showTimerCompleteModal, updateTaskListForDay,
-  assignTimerToSelection, endBreak, completeTimerWithLinking,
+  endBreak, completeTimerWithLinking,
   completeTimerWithoutLinking, updateStats,
   renderSkills, deleteTaskFromSkill, updateStatus, toggleTask,
   addSkill, updateSkill, deleteSkill, confirmDeleteSkill, addSkillTask,
@@ -1617,4 +1593,5 @@ export {
   saveState, recordSession, loadState,
   showToast, createToastContainer, openModal, closeModal,
   initEvaluationConfigs, runEvaluation, clearEvaluationResults, testConnection,
+  linkTypeChanged,
 };

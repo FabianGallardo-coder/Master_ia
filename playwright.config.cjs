@@ -8,7 +8,7 @@ const { devices } = require('@playwright/test');
 module.exports = {
   // Directories where tests live - E2E only
   testDir: './tests/e2e',
-  testMatch: '**/*.spec.js',
+  testMatch: '**/*.spec.{js,cjs}',
 
   // Per-test timeout
   timeout: 30000,

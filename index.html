@@ -3,27 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' http://localhost:11434 http://127.0.0.1:11434; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; media-src 'self' data: blob:; connect-src 'self' http://localhost:11434 http://127.0.0.1:11434; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none';">
     <title>Maestro IA - Asistente de Estudio</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         :root {
-            --bg: #0f172a;
-            --surface: #1e293b;
-            --card: #334155;
-            --accent: #8b5cf6;
-            --accent-glow: rgba(139, 92, 246, 0.3);
-            --text: #f1f5f9;
-            --text-muted: #94a3b8;
-            --success: #22c55e;
-            --warning: #eab308;
-            --danger: #ef4444;
-            --border: #475569;
+            /* Design System v1.0 — modern / #3b82f6 */
+
+            /* Brand */
+            --color-primary: #3b82f6;
+            --color-primary-hover: #2563eb;
+            --color-primary-light: #60a5fa;
+            --color-primary-glow: rgba(59, 130, 246, 0.3);
+            --color-secondary: #f6af3a;
+
+            /* Surfaces (dark theme) */
+            --color-surface-bg: #0f172a;
+            --color-surface-elevated: #1e293b;
+            --color-surface-card: #334155;
+
+            /* Text */
+            --color-text: #f1f5f9;
+            --color-text-muted: #94a3b8;
+
+            /* Semantic */
+            --color-success: #22c55e;
+            --color-warning: #eab308;
+            --color-error: #ef4444;
+            --color-info: #3b82f6;
+            --color-border: #475569;
+
+            /* Typography */
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'Fira Code', 'Cascadia Code', monospace;
+            --text-xs: 10px;
+            --text-sm: 13px;
+            --text-base: 16px;
+            --text-lg: 20px;
+            --text-xl: 25px;
+            --text-2xl: 31px;
+            --text-3xl: 39px;
+            --weight-normal: 400;
+            --weight-medium: 500;
+            --weight-semibold: 600;
+            --weight-bold: 700;
+            --leading-tight: 1.25;
+            --leading-normal: 1.5;
+            --leading-relaxed: 1.625;
+
+            /* Spacing (8pt grid) */
+            --space-1: 4px;
+            --space-2: 8px;
+            --space-3: 12px;
+            --space-4: 16px;
+            --space-5: 20px;
+            --space-6: 24px;
+            --space-7: 32px;
+            --space-8: 40px;
+            --space-9: 48px;
+            --space-10: 56px;
+            --space-11: 64px;
+
+            /* Border radius */
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+            --radius-full: 9999px;
+
+            /* Shadows (dark) */
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.4);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.4);
+            --shadow-xl: 0 20px 25px rgba(0,0,0,0.5);
+
+            /* Animation */
+            --duration-fast: 150ms;
+            --duration-normal: 250ms;
+            --duration-slow: 350ms;
+            --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+            /* Z-index */
+            --z-dropdown: 100;
+            --z-overlay: 200;
+            --z-modal: 300;
+            --z-toast: 400;
+
+            /* ── Backward compat aliases ── */
+            --bg: var(--color-surface-bg);
+            --surface: var(--color-surface-elevated);
+            --card: var(--color-surface-card);
+            --accent: var(--color-primary);
+            --accent-glow: var(--color-primary-glow);
+            --text: var(--color-text);
+            --text-muted: var(--color-text-muted);
+            --success: var(--color-success);
+            --warning: var(--color-warning);
+            --danger: var(--color-error);
+            --border: var(--color-border);
         }
         
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: var(--font-family);
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
@@ -212,7 +294,7 @@
             color: white;
         }
         
-        .timer-btn-primary:hover { background: #7c3aed; transform: scale(1.02); }
+        .timer-btn-primary:hover { background: var(--color-primary-hover); transform: scale(1.02); }
         
         .timer-btn-secondary {
             background: var(--surface);
@@ -594,7 +676,7 @@
             transition: all 0.2s;
         }
         
-        .chat-send:hover { background: #7c3aed; }
+        .chat-send:hover { background: var(--color-primary-hover); }
         .chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
         
         /* Status Bar */
@@ -764,7 +846,7 @@
     color: white;
 }
 .modal-btn-primary:hover {
-    background: #7c3aed;
+    background: var(--color-primary-hover);
 }
 .modal-btn-secondary {
     background: var(--surface);
@@ -897,6 +979,11 @@ a:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
+.skip-link:focus-visible {
+    position: absolute;
+    left: 8px;
+    top: 8px;
+}
 
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
@@ -910,7 +997,7 @@ a:focus-visible {
 </head>
 <body>
     <!-- Skip to main content link -->
-    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+    <a href="#main-content" class="skip-link" style="position:absolute;left:-9999px;z-index:9999;background:var(--color-primary);color:#fff;padding:8px 16px;">Saltar al contenido principal</a>
 
     <div class="app">
         <header>
@@ -1056,10 +1143,10 @@ Sé directo, amable, da pasos concretos. Responde en español. Máximo 3 párraf
                 <div class="setting-group">
                     <label class="setting-label">Configuraciones Predefinidas</label>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button class="timer-btn timer-btn-secondary preset-btn" onclick="applyPreset('preciso')">Preciso</button>
-                        <button class="timer-btn timer-btn-secondary preset-btn" onclick="applyPreset('equilibrado')">Equilibrado</button>
-                        <button class="timer-btn timer-btn-secondary preset-btn" onclick="applyPreset('detallado')">Detallado</button>
-                        <button class="timer-btn timer-btn-secondary preset-btn" onclick="applyPreset('creativo')">Creativo</button>
+                        <button class="timer-btn timer-btn-secondary preset-btn" data-action="applyPreset" data-args='["preciso"]'>Preciso</button>
+                        <button class="timer-btn timer-btn-secondary preset-btn" data-action="applyPreset" data-args='["equilibrado"]'>Equilibrado</button>
+                        <button class="timer-btn timer-btn-secondary preset-btn" data-action="applyPreset" data-args='["detallado"]'>Detallado</button>
+                        <button class="timer-btn timer-btn-secondary preset-btn" data-action="applyPreset" data-args='["creativo"]'>Creativo</button>
                     </div>
                     <small style="display: block; margin-top: 8px; color: var(--text-muted); font-size: 0.8rem;">
                         Preciso: temp=0.1, top_p=0.1, tokens=256<br>
@@ -1092,16 +1179,16 @@ Sé directo, amable, da pasos concretos. Responde en español. Máximo 3 párraf
                     </div>
 
                     <div style="display: flex; gap: 12px; margin-top: 16px;">
-                        <button class="timer-btn timer-btn-primary" onclick="runEvaluation()">Ejecutar Evaluación</button>
-                        <button class="timer-btn timer-btn-secondary" onclick="clearEvaluationResults()">Limpiar Resultados</button>
+                        <button class="timer-btn timer-btn-primary" data-action="runEvaluation">Ejecutar Evaluación</button>
+                        <button class="timer-btn timer-btn-secondary" data-action="clearEvaluationResults">Limpiar Resultados</button>
                     </div>
 
                     <div id="evalResults" style="margin-top: 24px;" aria-live="polite"></div>
                 </div>
 
                 <div style="display: flex; gap: 12px; margin-top: 24px;">
-                    <button class="timer-btn timer-btn-primary" onclick="saveSettings()">Guardar</button>
-                    <button class="timer-btn timer-btn-secondary" onclick="testConnection()">Probar conexión</button>
+                    <button class="timer-btn timer-btn-primary" data-action="saveSettings">Guardar</button>
+                    <button class="timer-btn timer-btn-secondary" data-action="testConnection">Probar conexión</button>
                 </div>
                 
                 <div id="settingsStatus" aria-live="polite" style="margin-top: 16px; padding: 12px; border-radius: 8px; display: none;"></div>
@@ -1109,7 +1196,7 @@ Sé directo, amable, da pasos concretos. Responde en español. Máximo 3 párraf
                 <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border);">
                     <button class="timer-btn timer-btn-secondary" id="clearDataBtn"
                             style="background: rgba(239,68,68,0.15); color: var(--danger); border-color: var(--danger);"
-                            onclick="clearAllData()">
+                            data-action="clearAllData">
                         🗑️ Borrar todos los datos
                     </button>
                 </div>
