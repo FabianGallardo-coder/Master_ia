@@ -37,7 +37,8 @@
     "files": [
       "index.html",
       "app.mjs",
-      "electron.cjs"
+      "electron.cjs",
+      "assets/**/*"
     ],
     "win": {
       "target": [

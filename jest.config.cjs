@@ -5,10 +5,13 @@ module.exports = {
   moduleFileExtensions: ['mjs', 'js', 'jsx', 'ts', 'tsx'],
   transform: {},
   collectCoverageFrom: [
-    '**/*.{js,jsx,mjs,ts,tsx}',
+    'app.mjs',
+    'electron.cjs',
+    'server.cjs',
     '!**/node_modules/**',
     '!**/vendor/**',
     '!**/__tests__/**',
+    '!**/coverage/**',
     '!**/.*'
   ],
   coverageThreshold: {

@@ -183,6 +183,7 @@ function resetTimer() {
 
 function timerComplete() {
     state.timerRunning = false;
+    try { new Audio('assets/sound/alert.mp3').play(); } catch (_) {}
 
     if (!state.isBreak) {
         state.sessionsToday++;
