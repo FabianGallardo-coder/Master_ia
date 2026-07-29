@@ -8,7 +8,7 @@ Maestro IA es una aplicación de escritorio innovadora diseñada específicament
 
 ### Principios de Diseño Fundamentales
 
-1. ⏰ **Intervalos Dinámicos** - En lugar del tradicional Pomodoro de 25/5 minutos, Maestro IA adapta los períodos de trabajo y descanso según tu energía, tipo de tarea, hora del día y historial personal.
+1. ⏰ **Intervalos Dinámicos** - En lugar del tradicional Pomodoro de 25/5 minutos, Maestro IA adapta los períodos de trabajo y descanso según tu energía, tipo de tarea, hora del día e historial personal.
 2. 🧠 **Diseñado para el TDAH** - Trabaja *con* tu neurobiología, abordando la ceguera temporal, fatiga ejecutiva, ciclos de evitación y trampas de hiperconcentración.
 3. 🔋 **Restauración, no Agotamiento** - Prioriza descansos activos sobre el scroll pasivo para prevenir el agotamiento mental.
 4. 🎯 **Mide Inicios, no Horas** - La métrica principal son las "iniciaciones exitosas" en lugar de las horas totales trabajadas.
@@ -17,24 +17,24 @@ Maestro IA es una aplicación de escritorio innovadora diseñada específicament
 ## Características Principales
 
 ### 🍅 Temporizador Inteligente
-- **5 modos adaptativos**: Arranque difícil (5/2 min), Estudio regular (15/5 min), Trabajo profundo (35/8 min), Baja energía (10/5 min), Reverse Pomodoro (2/10 min)
+- **5 modos adaptativos**: Arranque (5/2 min), Estudio (15/5 min), Trabajo (35/8 min), Baja (10/5 min), Reverse (2/10 min)
 - **Widget de energía**: Slider 1-5 para ajustar duración según tu nivel de energía antes de cada sesión
 - **Sistema de recompensas**: Ganancia de puntos de energía (1 punto cada 5 minutos de enfoque)
 - **Protección contra hiperconcentración**: Alertas 5 minutos antes del final con opción "Montar la Ola"
 
 ### 🎯 Sistema de Habilidades tipo RPG
 - **4 habilidades predefinidas**: RPG Maker (Dev de Juegos), Godot 2D (Dev de Juegos), Apache NiFi (Ingeniería de Datos), Inglés (Validación de Idioma)
-- **Seguimiento de progreso**: Cada habilidad tiene tareas específicas y porcentaje de completion
+- **Seguimiento de progreso**: Cada habilidad tiene tareas específicas y porcentaje de completado
 - **Recompensas por completado**: Asignación de tiempo de estudio otorga puntos de experiencia y energía
+- **Tarjetas colapsables**: Por defecto muestran solo header + barra de progreso; click para expandir y ver tareas
 
 ### 📅 Agenda y Planificador
-- **Vista semanal**: Organiza tu semana con bloques de tiempo por día
+- **Vista semanal 3 días**: Hoy + Mañana + Día siguiente (no 7 columnas apretadas)
 - **Vista de calendario**: Planificación mensual con vista tradicional de calendario
 - **Asociación de habilidades**: Vincula tareas a habilidades específicas para ganar XP relevante
 - **Seguimiento de completado**: Marca tareas como completadas y registra tiempo invertido
 
-### 💬 Chat Integrado Chat Integrado con IA Local
-- **Potenciado por Ollama**: Usa modelos locales como `o con IA Local
+### 💬 Chat Integrado con IA Local
 - **Potenciado por Ollama**: Usa modelos locales como `qwen2.5-coder:3b` para total privacidad
 - **Configuración avanzada**: Ajusta Temperature, Top-P y Max Tokens según tus necesidades
 - **Prompt personalizable**: Define el comportamiento del asistente mediante System Prompt
@@ -44,6 +44,15 @@ Maestro IA es una aplicación de escritorio innovadora diseñada específicament
   - Detallado (temp=0.2, top_p=0.3, tokens=1024) - Para tutoriales paso a paso
   - Creativo (temp=0.7, top_p=0.9, tokens=768) - Para brainstorming y pensamiento creativo
 - **Modo de evaluación**: Compara múltiples configuraciones simultáneamente para encontrar tu setup óptimo
+- **Ubicación**: Centro de la app, debajo del temporizador — siempre visible
+
+### 🎨 Diseño UI/UX Optimizado para TDAH
+- **Jerarquía visual clara**: Temporizador = héroe central; Skills y Agenda = paneles laterales
+- **Espaciado generoso**: Gap 20px entre columnas, padding amplio en tarjetas
+- **Colores calmados**: Bordes translúcidos, fondo oscuro, acento azul suave
+- **Scrollbar personalizada**: 6px, track transparente, thumb azul semi-transparente
+- **Menos ruido visual**: Solo 3 días visibles en agenda, skills colapsados por defecto, sin porcentajes redundantes
+- **Botones de preset**: Grid 2x2 en modal de configuración
 
 ### 🔐 Seguridad y Privacidad Primero
 - **Totalmente local**: Ningún dato sale de tu máquina (excepto lo que tú elijas compartir)
@@ -52,7 +61,7 @@ Maestro IA es una aplicación de escritorio innovadora diseñada específicament
   - `contextIsolation: true`
   - `sandbox: true` 
   - `nodeIntegration: false`
-  - CSP: `script-src 'self'` (sin 'unsafe-inline')
+  - CSP: `script-src 'self'` (sin `'unsafe-inline'`)
 - **Bloqueo de instancia única**: Previene corrupción de datos locales
 - **Enlaces externos seguros**: Se abren en el navegador del sistema, nunca dentro de la app
 
@@ -131,6 +140,7 @@ Esta configuración es ideal para explicaciones técnicas detalladas y precisas.
 - `jest.config.cjs` — Configuración de Jest 30 con `--experimental-vm-modules` para tests ESM.
 - `__tests__/` — Suites Jest, 11 archivos `.test.mjs` que importan `app.mjs` directamente.
 - `__tests__/helpers/setupDom.mjs` — Helper que pobla el DOM de jsdom con los `#id` necesarios.
+- `tests/e2e/` — Playwright E2E tests (Chromium contra dev server).
 - `package.json` — `"type": "module"`; `build.files` incluye `index.html`, `app.mjs`, `electron.cjs`.
 
 ## Seguridad y CSP
@@ -146,13 +156,19 @@ Esta configuración es ideal para explicaciones técnicas detalladas y precisas.
 ```bash
 npm start             # Lanza Electron (app.mjs + electron.cjs)
 node ./server.cjs     # Solo dev server: http://localhost:8081
-npm test              # 11 suites, 28 tests
+npm test              # 11 suites, 128 tests (unit + E2E)
 npm run build         # Empaqueta con electron-builder (NSIS + portable)
 ```
 
 Build con firma de código: `CSC_LINK` y `CSC_KEY_PASSWORD` como variables de entorno (opcionales; build local funciona sin firma).
 
-## Hallazgos cerrados
+## Tests
+
+- **Unit tests (Jest + jsdom)**: 128 tests en 11 suites — lógica de timer, skills, schedule, chat, settings, persistence
+- **E2E tests (Playwright)**: 47 tests — UI layout, timer flow, skills CRUD, schedule week/calendar views, chat, settings, persistence
+- **Visual QA**: `tests/e2e/ui-layout.spec.cjs` — bounding-box overlap detection para los 3 paneles principales
+
+## Hallazgos Cerrados
 
 - M-1 ollamaUrl allowlist ✓
 - M-2 localStorage clear-data (botón en Ajustes) ✓
