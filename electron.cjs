@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, Menu, crashReporter } = require('electron');
+const { app, BrowserWindow, shell, Menu, crashReporter, ipcMain } = require('electron');
 const path = require('path');
 
 let mainWindow;
@@ -35,21 +35,37 @@ function createWindow() {
         height: 800,
         minWidth: 800,
         minHeight: 600,
+        x: 100,
+        y: 100,
         title: 'Maestro IA',
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
             sandbox: true,
-            autoplayPolicy: 'no-user-gesture-required'
+            autoplayPolicy: 'no-user-gesture-required',
+            preload: path.join(__dirname, 'preload.cjs')
         },
+        frame: false,
         autoHideMenuBar: true,
-        show: false
+        show: true
     });
+
+    // IPC handlers for custom titlebar
+    ipcMain.on('window-minimize', () => mainWindow.minimize());
+    ipcMain.on('window-close', () => mainWindow.close());
+    ipcMain.handle('window-toggle-maximize', () => {
+        if (mainWindow.isMaximized()) mainWindow.unmaximize();
+        else mainWindow.maximize();
+    });
+    mainWindow.on('maximize', () => mainWindow.webContents.send('window-maximized-changed', true));
+    mainWindow.on('unmaximize', () => mainWindow.webContents.send('window-maximized-changed', false));
 
     mainWindow.loadFile('index.html');
 
     mainWindow.once('ready-to-show', () => {
+        if (!mainWindow) return;
         mainWindow.show();
+        mainWindow.focus();
     });
 
     mainWindow.on('closed', () => {

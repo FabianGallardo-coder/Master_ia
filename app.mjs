@@ -8,10 +8,10 @@
 // Tests: import { foo } from "../app.mjs" directly.
 
 const MODES = [
-    { id: 'hard', name: 'Arranque difícil', work: 5, break: 2, desc: 'Para cuando cuesta empezar' },
-    { id: 'regular', name: 'Estudio regular', work: 15, break: 5, desc: 'Lectura y ejercicios' },
-    { id: 'deep', name: 'Trabajo profundo', work: 35, break: 8, desc: 'Escritura y programación' },
-    { id: 'low', name: 'Baja energía', work: 10, break: 5, desc: 'Tardes y fatiga' },
+    { id: 'hard', name: 'Arranque', work: 5, break: 2, desc: 'Para cuando cuesta empezar' },
+    { id: 'regular', name: 'Estudio', work: 15, break: 5, desc: 'Lectura y ejercicios' },
+    { id: 'deep', name: 'Trabajo', work: 35, break: 8, desc: 'Escritura y programación' },
+    { id: 'low', name: 'Baja', work: 10, break: 5, desc: 'Tardes y fatiga' },
     { id: 'reverse', name: 'Reverse', work: 2, break: 10, desc: 'Bloqueo extremo' }
 ];
 
@@ -422,13 +422,21 @@ function updateStats() {
     document.getElementById('streakCount').textContent = state.streak;
 }
 
-// Skills
+function getSkillEmoji(type) {
+    const icons = { 'Game Dev': '🎮', 'Data Engineering': '📊', 'Idioma': '🌐', 'Programación': '💻', 'Diseño': '🎨' };
+    return icons[type] || '📚';
+}
+
 function renderSkills() {
     const grid = document.getElementById('skillsGrid');
-    const skillsContent = state.skills.length > 0 ? state.skills.map(skill => `
-        <div class="skill-card">
-            <div class="skill-header">
+    const skillsContent = state.skills.length > 0 ? state.skills.map(skill => {
+        const taskCount = skill.tasks.length;
+        const doneCount = skill.tasks.filter(t => t.done).length;
+        return `
+        <div class="skill-card glass" data-skill-id="${skill.id}">
+            <div class="skill-header" data-action="toggleSkillExpand" data-args='["${skill.id}"]' style="cursor:pointer;">
                 <div>
+                    <span class="skill-emoji">${getSkillEmoji(skill.type)}</span>
                     <div class="skill-name">${skill.name}</div>
                     <div class="skill-type">${skill.type}</div>
                 </div>
@@ -447,8 +455,8 @@ function renderSkills() {
             <div class="progress-bar">
                 <div class="progress-fill" style="width: ${skill.progress}%"></div>
             </div>
-            <div class="progress-text">${skill.progress}% completado</div>
-            <div class="skill-tasks">
+            <div class="skill-meta">${doneCount}/${taskCount} tareas</div>
+            <div class="skill-tasks" style="display:none;">
                 ${skill.tasks.map((task, i) => `
                     <div class="task-item ${task.done ? 'completed' : ''}" style="display: flex; align-items: center; margin-top: 4px;">
                         <input type="checkbox" ${task.done ? 'checked' : ''} data-action="toggleTask" data-args='["${skill.id}", ${i}]' style="margin-right: 8px;">
@@ -458,20 +466,14 @@ function renderSkills() {
                 `).join('')}
             </div>
         </div>
-    `).join('') : `
-        <div class="empty-state">
+    `}).join('') : `
+        <div class="empty-state glass">
             <h3>No tienes habilidades aún</h3>
             <p>Haz clic en "+ Nueva Skill" para crear tu primera habilidad de aprendizaje</p>
         </div>
     `;
 
-    grid.innerHTML = `
-        <div class="skills-header">
-            <h2>Skills</h2>
-            <button class="modal-btn modal-btn-primary" data-action="addSkill">+ Nueva Skill</button>
-        </div>
-        ${skillsContent}
-    `;
+    grid.innerHTML = skillsContent;
 }
 
 function deleteTaskFromSkill(skillId, taskIndex, event) {
@@ -688,7 +690,7 @@ function renderSchedule() {
     const isCal = state.calendarView === 'calendar';
 
     // Sync toolbar state
-    document.querySelectorAll('.schedule-toggle button').forEach(b => {
+    document.querySelectorAll('.schedule-view-toggle button').forEach(b => {
         b.classList.toggle('active', b.dataset.view === state.calendarView);
     });
 
@@ -697,18 +699,32 @@ function renderSchedule() {
 
     if (isCal) { renderCalendarView(); return; }
 
-    const days = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-    const today = new Date().getDay();
-    const todayIndex = today === 0 ? 6 : today - 1;
+    const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    const today = new Date();
+    const todayDow = today.getDay();
+    const todayIndex = todayDow === 0 ? 6 : todayDow - 1;
 
-    columns.innerHTML = days.map((day, i) => {
-        const tasks = getDayTasks(i);
+    // Show today + next 2 days
+    const visibleDays = [];
+    for (let offset = 0; offset < 3; offset++) {
+        const idx = (todayIndex + offset) % 7;
+        const d = new Date(today);
+        d.setDate(today.getDate() + offset);
+        const label = offset === 0 ? 'Hoy' : offset === 1 ? 'Mañana' : dayNames[idx];
+        visibleDays.push({ idx, label, date: d });
+    }
+
+    columns.innerHTML = visibleDays.map(day => {
+        const tasks = getDayTasks(day.idx);
         const hasTasks = tasks && tasks.trim() !== '';
+        const dateLabel = day.date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
         return `
             <div class="day-column">
-                <div class="day-name ${i === todayIndex ? 'today' : ''}">${day}</div>
-                ${hasTasks ? tasks : '<div class="empty-state">No hay tareas para este día<br>Haz clic en "+ Añadir" para crear una tarea</div>'}
-                <button class="add-task-btn" data-action="openAddTaskModal" data-args='[${i}]'>+ Añadir</button>
+                <div class="day-name ${day.idx === todayIndex ? 'today' : ''}">
+                    <span>${day.label}</span>
+                    <span class="day-date">${dateLabel}</span>
+                </div>
+                ${hasTasks ? tasks : `<div class="day-empty" data-action="openAddTaskModal" data-args='[${day.idx}]'>+</div>`}
             </div>
         `;
     }).join('');
@@ -877,8 +893,8 @@ function getDayTasks(dayIndex) {
         <div class="schedule-item-content">
             <div class="schedule-item-title">${t.title}</div>
             <div class="schedule-item-details">
-                <span class="schedule-item-skill">${t.skillName || 'Sin skill'}</span>
-                <span class="schedule-item-blocks">${t.blocks} bloques</span>
+                <span>${t.skillName || '—'}</span>
+                <span>${t.blocks}bl</span>
             </div>
         </div>
         <button class="schedule-item-delete" data-action="deleteTask" data-args='[${dayIndex}, ${index}]' data-stop="1">×</button>
@@ -886,6 +902,7 @@ function getDayTasks(dayIndex) {
 }
 
 function openAddTaskModal(dayIndex) {
+    if (dayIndex === undefined) { const d = new Date().getDay(); dayIndex = d === 0 ? 6 : d - 1; }
     const dayName = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'][dayIndex];
     const skillsOptions = state.skills.map(skill => `<option value="${skill.id}">${skill.name}</option>`).join('<option value="">-- Seleccionar skill --</option>');
 
@@ -1122,6 +1139,20 @@ async function testConnection() {
         }
     } catch (e) {
         showSettingsStatus('No se pudo conectar: ' + e.message, 'error');
+    }
+}
+
+function openSettings() {
+    const panel = document.getElementById('settingsPanel');
+    if (!panel) return;
+    openModal(panel.innerHTML, 'Configuración');
+    panel.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+    loadSettings();
+    const m = document.querySelector('.modal-content');
+    if (m) {
+        m.style.maxWidth = '700px';
+        m.style.overflowY = 'auto';
+        m.style.maxHeight = '90vh';
     }
 }
 
@@ -1432,6 +1463,15 @@ function clearEvaluationResults() {
 
 
 // ── Delegation handler: resolves data-action attributes CSP-safe (no inline scripts).
+function toggleSkillExpand(skillId) {
+    const card = document.querySelector(`.skill-card[data-skill-id="${skillId}"]`);
+    if (!card) return;
+    const tasks = card.querySelector('.skill-tasks');
+    if (!tasks) return;
+    const isVisible = tasks.style.display !== 'none';
+    tasks.style.display = isVisible ? 'none' : 'block';
+}
+
 const _ACTION_FNS = {
   selectMode, completeTimerWithLinking, completeTimerWithoutLinking,
   updateSkill, deleteSkill, addSkillTask, deleteTaskFromSkill,
@@ -1439,7 +1479,7 @@ const _ACTION_FNS = {
   openAddTaskModal, toggleCalendarTask, openCalendarTaskModal,
   toggleTaskCompletion, deleteTask, saveCalendarTask, deleteCalendarTask,
   saveSettings, testConnection, runEvaluation, clearEvaluationResults, clearAllData,
-  linkTypeChanged,
+  openSettings, linkTypeChanged, toggleSkillExpand,
 };
 function _delegatedEvent(e) {
   const el = e.target.closest('[data-action]');
@@ -1470,7 +1510,7 @@ const BRIDGE_MAP = {
   loadSettings, showSettingsStatus, applyPreset,
   saveState, recordSession, loadState,
   showToast, createToastContainer, openModal, closeModal,
-  initEvaluationConfigs, preloadAlert,
+  openSettings, initEvaluationConfigs, preloadAlert,
 };
 function attachToWindow(win) {
   const w = win || (typeof window !== "undefined" ? window : null);
@@ -1507,6 +1547,18 @@ function initApp(win, doc) {
   on($("temperature"),   "input",  e => { const v = $("tempValue"); if (v) v.textContent = e.target.value; });
   on($("topP"),          "input",  e => { const v = $("topPValue");  if (v) v.textContent = e.target.value; });
   on($("devModeToggle"), "change", e => { const s = $("devModeSection"); if (s) s.style.display = e.target.checked ? "block" : "none"; const l = $("devModeToggleLabel"); if (l) l.textContent = e.target.checked ? "Desactivar modo de prueba para desarrolladores" : "Activar modo de prueba para desarrolladores"; state.settings.devMode = e.target.checked; saveState(); });
+
+  // Custom titlebar controls (via preload electronAPI)
+  if (typeof window !== "undefined" && window.electronAPI) {
+    on($("minimizeBtn"), "click", () => window.electronAPI.minimize());
+    on($("maximizeBtn"), "click", () => window.electronAPI.maximize());
+    on($("closeBtn"),    "click", () => window.electronAPI.close());
+    window.electronAPI.onMaximizeChange((maximized) => {
+      const btn = $("maximizeBtn");
+      if (btn) btn.textContent = maximized ? "⊠" : "□";
+    });
+  }
+
   // Delegate all [data-action] events (CSP-safe replacement for inline onclick/onchange)
   d.addEventListener('click', _delegatedEvent);
   d.addEventListener('change', _delegatedEvent);
@@ -1517,7 +1569,7 @@ function initApp(win, doc) {
     renderModes();
     renderSkills();
     renderSchedule();
-    d.querySelectorAll(".schedule-toggle button").forEach(b => { b.addEventListener('click', () => switchCalendarView(b.dataset.view)); });
+    d.querySelectorAll(".schedule-view-toggle button").forEach(b => { b.addEventListener('click', () => switchCalendarView(b.dataset.view)); });
     const prev = $("calPrev"); if (prev) prev.addEventListener('click', () => { state.calendarCursor.setMonth(state.calendarCursor.getMonth() - 1); renderCalendarView(); });
     const next = $("calNext"); if (next) next.addEventListener('click', () => { state.calendarCursor.setMonth(state.calendarCursor.getMonth() + 1); renderCalendarView(); });
     updateTimerDisplay();
@@ -1527,7 +1579,7 @@ function initApp(win, doc) {
     preloadAlert();
     setInterval(checkOllama, 30000);
     if (typeof location !== "undefined" && location.protocol === "file:") {
-      const s = $("statusUrl"); if (s) s.textContent = "Abre via http://localhost:8081 para que Ollama funcione";
+      // no-op: statusUrl element was removed
     }
   }
 }
@@ -1558,7 +1610,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
   // Count all elements (not just body.children) — the real app nests content
   // inside <main>, <header>, etc., so direct children of <body> is too few.
   const isRealDoc = document.querySelectorAll('*').length > 50
-                  && !!document.querySelector('.tab');
+                  && !!document.querySelector('.titlebar');
   if (isRealDoc) {
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", () => initApp(window, document), { once: true });

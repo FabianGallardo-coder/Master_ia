@@ -18,7 +18,7 @@ describe('Schedule (app.mjs)', () => {
     const html = getDayTasks(2);
     expect(html).toContain('NiFi');
     expect(html).toContain('Apache');
-    expect(html).toContain('3 bloques');
+    expect(html).toContain('3bl');
 
     const stored = JSON.parse(localStorage.getItem('maestro_schedule_2'));
     expect(stored).toHaveLength(1);

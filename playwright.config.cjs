@@ -1,5 +1,5 @@
 // Playwright Configuration for Maestro IA E2E Testing
-// Runs the static server (node server.js) via Playwright's webServer option
+// Runs the static server (node server.cjs) via Playwright's webServer option
 // and exercises the app in a real browser against http://localhost:8081.
 // This replaces the plain browser-project setup, which bypassed Electron and
 // never actually served the app under test.
@@ -28,11 +28,11 @@ module.exports = {
   // Reporters: list to stdout, html report (never auto-open)
   reporter: [['list'], ['html', { open: 'never' }]],
 
-  // webServer: Playwright starts `node server.js` before the suite and waits
+  // webServer: Playwright starts `node server.cjs` before the suite and waits
   // for http://localhost:8081 to respond. Reuse a running server locally
   // (faster iteration); always start fresh on CI for determinism.
   webServer: {
-    command: 'node server.js',
+    command: 'node server.cjs',
     url: 'http://localhost:8081',
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
