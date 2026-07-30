@@ -15,12 +15,26 @@ describe('clearAllData (app.mjs)', () => {
     attachToWindow(window);
   });
 
+  test('cancels without wiping when the user declines the confirm dialog', () => {
+    localStorage.setItem('maestro_state', JSON.stringify({ energy: 99 }));
+    localStorage.setItem('user_pref', 'keep-me');
+
+    clearAllData();
+    document.querySelector('[data-action="closeModal"]').click();
+
+    // localStorage untouched
+    expect(localStorage.getItem('user_pref')).toBe('keep-me');
+    const stored = JSON.parse(localStorage.getItem('maestro_state'));
+    expect(stored.energy).toBe(99);
+  });
+
   test('clears every non-canonical localStorage key (data wiped, canonical re-persisted)', () => {
     localStorage.setItem('maestro_state', JSON.stringify({ x: 1 }));
     localStorage.setItem('maestro_schedule_0', JSON.stringify([{ a: 1 }]));
     localStorage.setItem('user_pref', 'whatever');
 
     clearAllData();
+    document.getElementById('confirmClearDataBtn').click();
 
     // All user data is gone — only the canonical state snapshot remains.
     expect(localStorage.getItem('maestro_schedule_0')).toBeNull();
@@ -39,6 +53,7 @@ describe('clearAllData (app.mjs)', () => {
     state.skills = [{ id: 'custom', name: 'X' }];
 
     clearAllData();
+    document.getElementById('confirmClearDataBtn').click();
 
     expect(state.energy).toBe(3);
     expect(state.sessionsToday).toBe(0);
@@ -53,6 +68,7 @@ describe('clearAllData (app.mjs)', () => {
   test('persists the cleared state back to localStorage', () => {
     state.energy = 77;
     clearAllData();
+    document.getElementById('confirmClearDataBtn').click();
     const stored = JSON.parse(localStorage.getItem('maestro_state'));
     expect(stored.energy).toBe(3);
   });

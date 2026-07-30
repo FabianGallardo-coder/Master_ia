@@ -35,4 +35,13 @@ describe('Skill CRUD (app.mjs)', () => {
     expect(Array.isArray(newSkill.tasks)).toBe(true);
     expect(newSkill.tasks.length).toBe(0);
   });
+
+  test('skill card renders a category-derived class (cat-<slug>)', async () => {
+    state.skills = [{ id: 's1', name: 'ETL Pipelines', type: 'Data Engineering', progress: 0, tasks: [] }];
+    const { renderSkills } = await import('../app.mjs');
+    renderSkills();
+    const card = document.querySelector('#skillsGrid .skill-card');
+    expect(card).toBeTruthy();
+    expect(card.className).toMatch(/cat-data-engineering/);
+  });
 });

@@ -106,6 +106,11 @@ function preloadAlert() {
 function getMode() { return MODES.find(m => m.id === state.selectedMode); }
 
 function selectMode(modeId) {
+    if (state.timerRunning) {
+        clearInterval(timerInterval);
+        state.timerRunning = false;
+        document.getElementById('startBtn').textContent = 'Iniciar';
+    }
     state.selectedMode = modeId;
     const mode = getMode();
     state.timeRemaining = mode.work * 60;
@@ -193,7 +198,7 @@ function timerComplete() {
     try {
         if (alertAudio) { alertAudio.currentTime = 0; alertAudio.play(); }
         else { new Audio('assets/sound/alert.mp3').play(); }
-    } catch (_) {}
+    } catch (_) { if (typeof showToast === 'function') showToast('No se pudo reproducir el sonido de alerta', 'error'); }
 
     if (!state.isBreak) {
         state.sessionsToday++;
@@ -427,13 +432,19 @@ function getSkillEmoji(type) {
     return icons[type] || '📚';
 }
 
+function categorySlug(type) {
+    if (!type) return 'default';
+    const slug = String(type).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return slug || 'default';
+}
+
 function renderSkills() {
     const grid = document.getElementById('skillsGrid');
     const skillsContent = state.skills.length > 0 ? state.skills.map(skill => {
         const taskCount = skill.tasks.length;
         const doneCount = skill.tasks.filter(t => t.done).length;
         return `
-        <div class="skill-card glass" data-skill-id="${skill.id}">
+        <div class="skill-card glass cat-${categorySlug(skill.type)}" data-skill-id="${skill.id}">
             <div class="skill-header" data-action="toggleSkillExpand" data-args='["${skill.id}"]' style="cursor:pointer;">
                 <div>
                     <span class="skill-emoji">${getSkillEmoji(skill.type)}</span>
@@ -456,7 +467,7 @@ function renderSkills() {
                 <div class="progress-fill" style="width: ${skill.progress}%"></div>
             </div>
             <div class="skill-meta">${doneCount}/${taskCount} tareas</div>
-            <div class="skill-tasks" style="display:none;">
+            <div class="skill-tasks">
                 ${skill.tasks.map((task, i) => `
                     <div class="task-item ${task.done ? 'completed' : ''}" style="display: flex; align-items: center; margin-top: 4px;">
                         <input type="checkbox" ${task.done ? 'checked' : ''} data-action="toggleTask" data-args='["${skill.id}", ${i}]' style="margin-right: 8px;">
@@ -481,17 +492,28 @@ function deleteTaskFromSkill(skillId, taskIndex, event) {
     const skill = state.skills.find(s => s.id === skillId);
     if (!skill) return;
 
-    if (!confirm('¿Eliminar esta tarea de la habilidad?')) return;
-
-    skill.tasks.splice(taskIndex, 1);
-    // Recalculate progress
-    const completed = skill.tasks.filter(t => t.done).length;
-    skill.progress = skill.tasks.length > 0 ? Math.round((completed / skill.tasks.length) * 100) : 0;
-    skill.status = skill.progress === 100 ? 'done' : skill.progress > 0 ? 'progress' : 'pending';
-
-    renderSkills();
-    saveState();
-    showToast('Tarea eliminada', 'info');
+    const modalContent = `
+        <p>¿Eliminar esta tarea de la habilidad "<strong>${skill.name}</strong>"?</p>
+        <p>Esta acción no se puede deshacer.</p>
+        <div class="form-group">
+            <button type="button" class="modal-btn modal-btn-danger" id="confirmDeleteTaskBtn">Eliminar</button>
+            <button type="button" class="modal-btn modal-btn-secondary" data-action="closeModal">Cancelar</button>
+        </div>
+    `;
+    openModal(modalContent, 'Confirmar Eliminación');
+    const btn = document.getElementById('confirmDeleteTaskBtn');
+    if (btn) {
+        btn.onclick = () => {
+            skill.tasks.splice(taskIndex, 1);
+            const completed = skill.tasks.filter(t => t.done).length;
+            skill.progress = skill.tasks.length > 0 ? Math.round((completed / skill.tasks.length) * 100) : 0;
+            skill.status = skill.progress === 100 ? 'done' : skill.progress > 0 ? 'progress' : 'pending';
+            renderSkills();
+            saveState();
+            closeModal();
+            showToast('Tarea eliminada', 'info');
+        };
+    }
 }
 
 function updateStatus(skillId, newStatus) {
@@ -696,23 +718,23 @@ function renderSchedule() {
 
     columns.hidden = isCal;
     calendar.hidden = !isCal;
+    const weekdays = document.getElementById('calendarWeekdays');
+    if (weekdays) weekdays.hidden = !isCal;
 
     if (isCal) { renderCalendarView(); return; }
 
     const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
     const today = new Date();
     const todayDow = today.getDay();
-    const todayIndex = todayDow === 0 ? 6 : todayDow - 1;
+    const todayIndex = todayDow === 0 ? 6 : todayDow - 1; // 0=Mon..6=Sun
 
-    // Show today + next 2 days
-    const visibleDays = [];
-    for (let offset = 0; offset < 3; offset++) {
+    // Show Hoy + the next 4 days (5 columns starting from today, no past days).
+    const visibleDays = Array.from({ length: 5 }, (_, offset) => {
         const idx = (todayIndex + offset) % 7;
         const d = new Date(today);
         d.setDate(today.getDate() + offset);
-        const label = offset === 0 ? 'Hoy' : offset === 1 ? 'Mañana' : dayNames[idx];
-        visibleDays.push({ idx, label, date: d });
-    }
+        return { idx, label: offset === 0 ? 'Hoy' : dayNames[idx], date: d, offset };
+    });
 
     columns.innerHTML = visibleDays.map(day => {
         const tasks = getDayTasks(day.idx);
@@ -720,7 +742,7 @@ function renderSchedule() {
         const dateLabel = day.date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
         return `
             <div class="day-column">
-                <div class="day-name ${day.idx === todayIndex ? 'today' : ''}">
+                <div class="day-name ${day.offset === 0 ? 'today' : ''}">
                     <span>${day.label}</span>
                     <span class="day-date">${dateLabel}</span>
                 </div>
@@ -877,12 +899,28 @@ function toggleCalendarTask(dateStr, idx) {
 }
 
 function deleteCalendarTask(dateStr, idx) {
-    if (!confirm('¿Eliminar esta tarea?')) return;
     const tasks = loadCalendarTasks(dateStr);
-    tasks.splice(idx, 1);
-    localStorage.setItem(`maestro_calendar_${dateStr}`, JSON.stringify(tasks));
-    renderSchedule();
-    showToast('Tarea eliminada', 'info');
+    const task = tasks[idx];
+    if (!task) return;
+    const modalContent = `
+        <p>¿Eliminar la tarea "<strong>${(task.title || '').replace(/</g, '&lt;')}</strong>"?</p>
+        <p>Esta acción no se puede deshacer.</p>
+        <div class="form-group">
+            <button type="button" class="modal-btn modal-btn-danger" id="confirmDeleteCalTaskBtn">Eliminar</button>
+            <button type="button" class="modal-btn modal-btn-secondary" data-action="closeModal">Cancelar</button>
+        </div>
+    `;
+    openModal(modalContent, 'Confirmar Eliminación');
+    const btn = document.getElementById('confirmDeleteCalTaskBtn');
+    if (btn) {
+        btn.onclick = () => {
+            tasks.splice(idx, 1);
+            localStorage.setItem(`maestro_calendar_${dateStr}`, JSON.stringify(tasks));
+            renderSchedule();
+            closeModal();
+            showToast('Tarea eliminada', 'info');
+        };
+    }
 }
 
 function getDayTasks(dayIndex) {
@@ -952,14 +990,29 @@ function openAddTaskModal(dayIndex) {
 
 function deleteTask(dayIndex, taskIndex, event) {
     if (event) event.stopPropagation();
-    if (!confirm('¿Eliminar esta tarea?')) return;
     const saved = localStorage.getItem(`maestro_schedule_${dayIndex}`);
     if (!saved) return;
     const tasks = JSON.parse(saved);
-    tasks.splice(taskIndex, 1);
-    localStorage.setItem(`maestro_schedule_${dayIndex}`, JSON.stringify(tasks));
-    renderSchedule();
-    showToast('Tarea eliminada', 'info');
+    const task = tasks[taskIndex];
+    if (!task) return;
+    const modalContent = `
+        <p>¿Eliminar esta tarea?</p>
+        <div class="form-group">
+            <button type="button" class="modal-btn modal-btn-danger" id="confirmDeleteSchedTaskBtn">Eliminar</button>
+            <button type="button" class="modal-btn modal-btn-secondary" data-action="closeModal">Cancelar</button>
+        </div>
+    `;
+    openModal(modalContent, 'Confirmar Eliminación');
+    const btn = document.getElementById('confirmDeleteSchedTaskBtn');
+    if (btn) {
+        btn.onclick = () => {
+            tasks.splice(taskIndex, 1);
+            localStorage.setItem(`maestro_schedule_${dayIndex}`, JSON.stringify(tasks));
+            renderSchedule();
+            closeModal();
+            showToast('Tarea eliminada', 'info');
+        };
+    }
 }
 
 function toggleTaskCompletion(dayIndex, taskIndex) {
@@ -1011,26 +1064,51 @@ async function checkOllama() {
     document.getElementById('ollamaText').textContent = ollamaAvailable ? 'Ollama conectado' : 'Ollama no disponible';
 }
 
+let currentChatAbort = null;
+let chatWasStopped = false;
+
+function setChatBusy(busy) {
+    const sendBtn = document.getElementById('sendBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    if (sendBtn) sendBtn.disabled = busy;
+    if (stopBtn) stopBtn.hidden = !busy;
+}
+
+function stopChat() {
+    if (currentChatAbort) {
+        chatWasStopped = true;
+        currentChatAbort.abort();
+    }
+}
+
+function removeTypingIndicator() {
+    const t = document.querySelector('#chatMessages .message.typing');
+    if (t) t.remove();
+}
+
 async function sendMessage() {
     const input = document.getElementById('chatInput');
     const msg = input.value.trim();
     if (!msg) return;
-    
+
     addMessage(msg, 'user');
     input.value = '';
-    
+
     if (!ollamaAvailable) {
         addMessage('Ollama no está corriendo. Verifica la URL en Configuración.', 'assistant');
         return;
     }
-    
-    document.getElementById('sendBtn').disabled = true;
-    
+
+    setChatBusy(true);
+    addMessage('typing', 'typing');
+    currentChatAbort = new AbortController();
+    chatWasStopped = false;
+
     try {
-        const model = state.settings.model === 'custom' 
-            ? document.getElementById('customModel').value 
+        const model = state.settings.model === 'custom'
+            ? document.getElementById('customModel').value
             : state.settings.model;
-        
+
         const res = await fetch(`${state.settings.ollamaUrl}/api/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1044,30 +1122,51 @@ async function sendMessage() {
                     top_p: state.settings.topP,
                     num_predict: state.settings.maxTokens
                 }
-            })
+            }),
+            signal: currentChatAbort.signal
         });
-        
+
         const data = await res.json();
-        addMessage(data.response, 'assistant');
+        removeTypingIndicator();
+        if (chatWasStopped) {
+            addMessage('Generación detenida.', 'assistant');
+        } else {
+            addMessage(data.response, 'assistant');
+        }
     } catch (e) {
-        addMessage('Error: ' + e.message, 'assistant');
+        removeTypingIndicator();
+        if (chatWasStopped) {
+            addMessage('Generación detenida.', 'assistant');
+        } else {
+            addMessage('Error: ' + e.message, 'assistant');
+        }
+    } finally {
+        currentChatAbort = null;
+        chatWasStopped = false;
+        setChatBusy(false);
     }
-    
-    document.getElementById('sendBtn').disabled = false;
 }
 
 function addMessage(text, role) {
     const container = document.getElementById('chatMessages');
     const wrap = document.createElement('div');
-    wrap.className = `message ${role}`;
-    const avatar = document.createElement('div');
-    avatar.className = 'message-avatar';
-    avatar.textContent = role === 'user' ? '👤' : '🎓';
-    const content = document.createElement('div');
-    content.className = 'message-content';
-    content.textContent = text;
-    wrap.appendChild(avatar);
-    wrap.appendChild(content);
+    if (role === 'typing') {
+        wrap.className = 'message typing';
+        const dots = document.createElement('div');
+        dots.className = 'typing-dots';
+        dots.innerHTML = '<span></span><span></span><span></span>';
+        wrap.appendChild(dots);
+    } else {
+        wrap.className = `message ${role}`;
+        const avatar = document.createElement('div');
+        avatar.className = 'message-avatar';
+        avatar.textContent = role === 'user' ? '👤' : '🎓';
+        const content = document.createElement('div');
+        content.className = 'message-content';
+        content.textContent = text;
+        wrap.appendChild(avatar);
+        wrap.appendChild(content);
+    }
     container.appendChild(wrap);
     container.scrollTop = container.scrollHeight;
 }
@@ -1468,8 +1567,7 @@ function toggleSkillExpand(skillId) {
     if (!card) return;
     const tasks = card.querySelector('.skill-tasks');
     if (!tasks) return;
-    const isVisible = tasks.style.display !== 'none';
-    tasks.style.display = isVisible ? 'none' : 'block';
+    tasks.classList.toggle('expanded');
 }
 
 const _ACTION_FNS = {
@@ -1506,7 +1604,7 @@ const BRIDGE_MAP = {
   completeTimerWithoutLinking, updateStats,
   renderSkills, renderSchedule, ymd, monthLabel,
   loadCalendarTasks, renderCalendarView, switchCalendarView,
-  checkOllama, sendMessage, addMessage,
+  checkOllama, sendMessage, addMessage, stopChat,
   loadSettings, showSettingsStatus, applyPreset,
   saveState, recordSession, loadState,
   showToast, createToastContainer, openModal, closeModal,
@@ -1542,6 +1640,7 @@ function initApp(win, doc) {
   on($("resetBtn"),      "click", resetTimer);
   on($("endBreakBtn"),   "click", endBreak);
   on($("sendBtn"),       "click", sendMessage);
+  on($("stopBtn"),       "click", stopChat);
   on($("chatInput"),     "keypress", e => { if (e.key === "Enter") sendMessage(); });
   on($("modelSelect"),   "change", e => { const c = $("customModel"); if (c) c.style.display = e.target.value === "custom" ? "block" : "none"; });
   on($("temperature"),   "input",  e => { const v = $("tempValue"); if (v) v.textContent = e.target.value; });
@@ -1585,14 +1684,29 @@ function initApp(win, doc) {
 }
 
 function clearAllData() {
-  if (typeof localStorage !== 'undefined') localStorage.clear();
-  const fresh = JSON.parse(JSON.stringify(INITIAL_STATE));
-  fresh.calendarCursor = new Date();
-  Object.keys(state).forEach(k => delete state[k]);
-  Object.assign(state, fresh);
-  saveState();
-  showToast('Datos borrados. Recargando…', 'success');
-  setTimeout(() => { if (typeof location !== 'undefined') location.reload(); }, 800);
+  const modalContent = `
+    <p>¿Borrar TODOS los datos?</p>
+    <p>Esto incluye skills, agenda, calendario e historial. No se puede deshacer.</p>
+    <div class="form-group">
+      <button type="button" class="modal-btn modal-btn-danger" id="confirmClearDataBtn">Borrar todo</button>
+      <button type="button" class="modal-btn modal-btn-secondary" data-action="closeModal">Cancelar</button>
+    </div>
+  `;
+  openModal(modalContent, 'Borrar Todos los Datos');
+  const btn = document.getElementById('confirmClearDataBtn');
+  if (btn) {
+    btn.onclick = () => {
+      if (typeof localStorage !== 'undefined') localStorage.clear();
+      const fresh = JSON.parse(JSON.stringify(INITIAL_STATE));
+      fresh.calendarCursor = new Date();
+      Object.keys(state).forEach(k => delete state[k]);
+      Object.assign(state, fresh);
+      saveState();
+      closeModal();
+      showToast('Datos borrados. Recargando…', 'success');
+      setTimeout(() => { if (typeof location !== 'undefined') location.reload(); }, 800);
+    };
+  }
 }
 
 // ── Auto-bootstrap when loaded via <script type="module">.
@@ -1607,10 +1721,8 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
   // isRealDoc: only auto-init in a fully populated document (Electron / browser).
   // jsdom test fixtures start with a near-empty body, so tests must opt-in
   // by populating the DOM AND calling initApp() explicitly when they want it.
-  // Count all elements (not just body.children) — the real app nests content
-  // inside <main>, <header>, etc., so direct children of <body> is too few.
-  const isRealDoc = document.querySelectorAll('*').length > 50
-                  && !!document.querySelector('.titlebar');
+  const isRealDoc = !!document.getElementById('timerTime')
+                 && !!document.querySelector('.titlebar');
   if (isRealDoc) {
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", () => initApp(window, document), { once: true });
@@ -1634,13 +1746,13 @@ export {
   startBreak, showTimerCompleteModal, updateTaskListForDay,
   endBreak, completeTimerWithLinking,
   completeTimerWithoutLinking, updateStats,
-  renderSkills, deleteTaskFromSkill, updateStatus, toggleTask,
+  renderSkills, deleteTaskFromSkill, updateStatus, toggleTask, toggleSkillExpand,
   addSkill, updateSkill, deleteSkill, confirmDeleteSkill, addSkillTask,
   renderSchedule, ymd, monthLabel, loadCalendarTasks, renderCalendarView,
   switchCalendarView, openCalendarTaskModal, saveCalendarTask,
   toggleCalendarTask, deleteCalendarTask, getDayTasks, openAddTaskModal,
   deleteTask, toggleTaskCompletion, saveTask,
-  checkOllama, sendMessage, addMessage,
+  checkOllama, sendMessage, addMessage, stopChat,
   saveSettings, loadSettings, showSettingsStatus, applyPreset, isAllowedOllamaUrl, clearAllData,
   saveState, recordSession, loadState,
   showToast, createToastContainer, openModal, closeModal,

@@ -86,9 +86,11 @@ function createWindow() {
     // Prevent in-app navigation away from index.html
     mainWindow.webContents.on('will-navigate', (event, url) => {
         const parsed = new URL(url);
-        if (parsed.protocol !== 'file:') {
+        if (parsed.protocol !== 'file:' || parsed.pathname !== path.resolve(__dirname, 'index.html')) {
             event.preventDefault();
-            shell.openExternal(url);
+            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+                shell.openExternal(url);
+            }
         }
     });
 }
