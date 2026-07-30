@@ -39,6 +39,7 @@
       "index.html",
       "app.mjs",
       "electron.cjs",
+      "preload.cjs",
       "assets/**/*"
     ],
     "win": {
