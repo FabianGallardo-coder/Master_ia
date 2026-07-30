@@ -47,9 +47,6 @@
         "portable"
       ],
       "icon": null,
-      "certificateFile": "${env.CSC_LINK}",
-      "certificatePassword": "${env.CSC_KEY_PASSWORD}",
-      "publisherName": "Maestro IA",
       "verifyUpdateCodeSignature": false
     },
     "mac": {
