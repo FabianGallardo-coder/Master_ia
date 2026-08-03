@@ -15,6 +15,9 @@ test-results/
 playwright-report/
 coverage/
 
+# Dev redirection junk
+electron_*.txt
+
 # Environment
 .env
 .env.*
@@ -41,3 +44,5 @@ wiki-skills/
 humanizer/
 review-*.png
 AGENTS.md
+.claude/
+CLAUDE.md
