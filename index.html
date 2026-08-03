@@ -702,7 +702,7 @@
         /* Schedule Panel */
         .schedule-grid {
             display: grid;
-            grid-template-columns: repeat(5, minmax(0, 1fr));
+            grid-template-columns: 1fr;
             gap: 8px;
             flex: 1;
             min-height: 0;
@@ -715,6 +715,11 @@
             border: 1px solid rgba(59, 130, 246, 0.06);
             border-radius: var(--radius-xl);
             padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 0;
+            overflow-y: auto;
         }
         
         .day-name {
@@ -765,16 +770,18 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            height: 60px;
+            flex: 1;
+            min-height: 120px;
             color: var(--color-text-muted);
             opacity: 0.3;
             font-size: 1.2rem;
             user-select: none;
             cursor: pointer;
             border-radius: var(--radius-md);
+            border: 2px dashed rgba(59, 130, 246, 0.15);
             transition: all var(--duration-fast);
         }
-        .day-empty:hover { opacity: 0.7; background: rgba(59, 130, 246, 0.08); }
+        .day-empty:hover { opacity: 0.8; background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.4); }
 
         /* Single add-task button in header (removed per-column) */
         .sidebar-right .add-task-btn { display: inline-flex; }
@@ -1428,7 +1435,7 @@ a:focus-visible {
                     <div style="display:flex;gap:6px;align-items:center;">
                         <button class="modal-btn modal-btn-primary add-task-btn" data-action="openAddTaskModal" style="padding:4px 12px;font-size:0.75rem;">+ Tarea</button>
                         <div class="schedule-view-toggle">
-                            <button data-view="columns" class="active" title="Próximos 5 días">Próximos</button>
+                            <button data-view="columns" class="active" title="Un día a la vez">Día</button>
                             <button data-view="calendar" title="Vista mes">Mes</button>
                         </div>
                     </div>

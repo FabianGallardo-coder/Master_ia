@@ -37,6 +37,7 @@ const state = {
     sessionHistory: [],
     calendarView: 'columns',
     calendarCursor: new Date(),
+    scheduleDayOffset: 0,
     settings: {
         ollamaUrl: 'http://localhost:11434',
         model: 'qwen2.5-coder:3b',
@@ -723,33 +724,34 @@ function renderSchedule() {
 
     if (isCal) { renderCalendarView(); return; }
 
+    // Focus on ONE day (Hoy by default) to reduce cognitive load for ADHD users.
     const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
     const today = new Date();
-    const todayDow = today.getDay();
-    const todayIndex = todayDow === 0 ? 6 : todayDow - 1; // 0=Mon..6=Sun
+    const d = new Date(today);
+    d.setDate(today.getDate() + state.scheduleDayOffset);
 
-    // Show Hoy + the next 4 days (5 columns starting from today, no past days).
-    const visibleDays = Array.from({ length: 5 }, (_, offset) => {
-        const idx = (todayIndex + offset) % 7;
-        const d = new Date(today);
-        d.setDate(today.getDate() + offset);
-        return { idx, label: offset === 0 ? 'Hoy' : dayNames[idx], date: d, offset };
-    });
+    const dow = d.getDay();
+    const idx = dow === 0 ? 6 : dow - 1; // 0=Mon..6=Sun
+    const offset = state.scheduleDayOffset;
 
-    columns.innerHTML = visibleDays.map(day => {
-        const tasks = getDayTasks(day.idx);
-        const hasTasks = tasks && tasks.trim() !== '';
-        const dateLabel = day.date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
-        return `
-            <div class="day-column">
-                <div class="day-name ${day.offset === 0 ? 'today' : ''}">
-                    <span>${day.label}</span>
-                    <span class="day-date">${dateLabel}</span>
-                </div>
-                ${hasTasks ? tasks : `<div class="day-empty" data-action="openAddTaskModal" data-args='[${day.idx}]'>+</div>`}
+    const dateLabel = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    const shortLabel = offset === 0 ? 'Hoy' : offset === 1 ? 'Mañana' : offset === -1 ? 'Ayer' : dayNames[idx];
+
+    const navTitle = document.getElementById('calTitle');
+    if (navTitle) navTitle.textContent = offset === 0 ? 'Hoy' : dateLabel;
+
+    const tasks = getDayTasks(idx);
+    const hasTasks = tasks && tasks.trim() !== '';
+
+    columns.innerHTML = `
+        <div class="day-column">
+            <div class="day-name ${offset === 0 ? 'today' : ''}">
+                <span>${shortLabel}</span>
+                <span class="day-date">${dateLabel}</span>
             </div>
-        `;
-    }).join('');
+            ${hasTasks ? tasks : `<div class="day-empty" data-action="openAddTaskModal" data-args='[${idx}]'>+ Agregar tarea</div>`}
+        </div>
+    `;
 }
 
 // ---- Calendar view ----
@@ -1669,8 +1671,24 @@ function initApp(win, doc) {
     renderSkills();
     renderSchedule();
     d.querySelectorAll(".schedule-view-toggle button").forEach(b => { b.addEventListener('click', () => switchCalendarView(b.dataset.view)); });
-    const prev = $("calPrev"); if (prev) prev.addEventListener('click', () => { state.calendarCursor.setMonth(state.calendarCursor.getMonth() - 1); renderCalendarView(); });
-    const next = $("calNext"); if (next) next.addEventListener('click', () => { state.calendarCursor.setMonth(state.calendarCursor.getMonth() + 1); renderCalendarView(); });
+    const prev = $("calPrev"); if (prev) prev.addEventListener('click', () => {
+        if (state.calendarView === 'columns') {
+            state.scheduleDayOffset -= 1;
+            renderSchedule();
+        } else {
+            state.calendarCursor.setMonth(state.calendarCursor.getMonth() - 1);
+            renderCalendarView();
+        }
+    });
+    const next = $("calNext"); if (next) next.addEventListener('click', () => {
+        if (state.calendarView === 'columns') {
+            state.scheduleDayOffset += 1;
+            renderSchedule();
+        } else {
+            state.calendarCursor.setMonth(state.calendarCursor.getMonth() + 1);
+            renderCalendarView();
+        }
+    });
     updateTimerDisplay();
     updateStats();
     loadSettings();
