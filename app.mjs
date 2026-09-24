@@ -446,12 +446,14 @@ function renderSkills() {
         const doneCount = skill.tasks.filter(t => t.done).length;
         return `
         <div class="skill-card glass cat-${categorySlug(skill.type)}" data-skill-id="${skill.id}">
-            <div class="skill-header" data-action="toggleSkillExpand" data-args='["${skill.id}"]' style="cursor:pointer;">
-                <div>
+            <div class="skill-header">
+                <button type="button" class="skill-expand-toggle" data-action="toggleSkillExpand" data-args='["${skill.id}"]' aria-expanded="false" aria-controls="skill-tasks-${skill.id}">
                     <span class="skill-emoji">${getSkillEmoji(skill.type)}</span>
-                    <div class="skill-name">${skill.name}</div>
-                    <div class="skill-type">${skill.type}</div>
-                </div>
+                    <span class="skill-expand-text">
+                        <span class="skill-name">${skill.name}</span>
+                        <span class="skill-type">${skill.type}</span>
+                    </span>
+                </button>
                 <div class="skill-actions">
                     <select class="skill-status status-${skill.status}" data-action="updateStatus" data-args='["${skill.id}"]'>
                         <option value="pending" ${skill.status === 'pending' ? 'selected' : ''}>Pendiente</option>
@@ -468,11 +470,11 @@ function renderSkills() {
                 <div class="progress-fill" style="width: ${skill.progress}%"></div>
             </div>
             <div class="skill-meta">${doneCount}/${taskCount} tareas</div>
-            <div class="skill-tasks">
+            <div class="skill-tasks" id="skill-tasks-${skill.id}">
                 ${skill.tasks.map((task, i) => `
-                    <div class="task-item ${task.done ? 'completed' : ''}" style="display: flex; align-items: center; margin-top: 4px;">
-                        <input type="checkbox" ${task.done ? 'checked' : ''} data-action="toggleTask" data-args='["${skill.id}", ${i}]' style="margin-right: 8px;">
-                        <span style="flex-grow: 1;">${task.text}</span>
+                    <div class="task-item ${task.done ? 'completed' : ''}">
+                        <input type="checkbox" ${task.done ? 'checked' : ''} data-action="toggleTask" data-args='["${skill.id}", ${i}]'>
+                        <span class="task-text">${task.text}</span>
                         <button class="task-delete" data-action="deleteTaskFromSkill" data-args='["${skill.id}", ${i}]' data-stop="1">×</button>
                     </div>
                 `).join('')}
@@ -1436,12 +1438,10 @@ function initEvaluationConfigs() {
     };
 
     evalConfigs.innerHTML = Object.entries(presets).map(([key, config]) => `
-        <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <label class="eval-config-label">
             <input type="checkbox" value="${key}" checked>
             <span>${config.name}</span>
-            <small style="margin-left: auto; font-size: 0.8rem; color: var(--text-muted);">
-                temp=${config.temperature}, top_p=${config.topP}, tokens=${config.maxTokens}
-            </small>
+            <small class="eval-config-meta">temp=${config.temperature}, top_p=${config.topP}, tokens=${config.maxTokens}</small>
         </label>
     `).join('');
 }
@@ -1462,7 +1462,7 @@ async function runEvaluation() {
     }
 
     const resultsDiv = document.getElementById('evalResults');
-    resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">Ejecutando evaluación...</div>';
+    resultsDiv.innerHTML = '<div class="eval-message">Ejecutando evaluación...</div>';
 
     try {
         const presets = {
@@ -1521,17 +1521,17 @@ async function runEvaluation() {
 
         // Display results
         resultsDiv.innerHTML = `
-            <div style="display: grid; gap: 16px;">
+            <div class="eval-results-grid">
                 ${results.map((result, index) => `
-                    <div style="background: var(--surface); border-radius: 12px; padding: 16px; border-left: 4px solid var(--accent);">
-                        <div style="display: flex; justify-content: between; align-items: start; margin-bottom: 12px;">
-                            <h4 style="margin: 0; color: var(--text);">${result.config.name}</h4>
-                            <div style="display: flex; gap: 12px; font-size: 0.9rem; color: var(--text-muted);">
+                    <div class="eval-result-card">
+                        <div class="eval-result-header">
+                            <h4>${result.config.name}</h4>
+                            <div class="eval-result-meta">
                                 <span>⏱️ ${result.time.toFixed(0)}ms</span>
                                 <span>📝 ${result.length} caracteres</span>
                             </div>
                         </div>
-                        <div data-result-text="${index}" class="result-text" style="line-height: 1.5; color: var(--text);"></div>
+                        <div data-result-text="${index}" class="result-text"></div>
                     </div>
                 `).join('')}
             </div>
@@ -1552,7 +1552,7 @@ async function runEvaluation() {
 
         showSettingsStatus('Evaluación completada', 'success');
     } catch (error) {
-        resultsDiv.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--danger);">Error: ${error.message}</div>`;
+        resultsDiv.innerHTML = `<div class="eval-message eval-message-error">Error: ${error.message}</div>`;
         showSettingsStatus('Error durante la evaluación', 'error');
     }
 }
@@ -1569,7 +1569,20 @@ function toggleSkillExpand(skillId) {
     if (!card) return;
     const tasks = card.querySelector('.skill-tasks');
     if (!tasks) return;
-    tasks.classList.toggle('expanded');
+    const expanded = tasks.classList.toggle('expanded');
+    const toggle = card.querySelector('.skill-expand-toggle');
+    if (toggle) toggle.setAttribute('aria-expanded', String(expanded));
+}
+
+function toggleSidebarPanel(side) {
+    const sidebar = document.querySelector(side === 'left' ? '.sidebar-left' : '.sidebar-right');
+    if (!sidebar) return;
+    const collapsed = sidebar.classList.toggle('collapsed');
+    const btn = sidebar.querySelector('.sidebar-toggle');
+    if (btn) {
+        btn.setAttribute('aria-expanded', String(!collapsed));
+        btn.setAttribute('aria-label', collapsed ? 'Expandir sección' : 'Contraer sección');
+    }
 }
 
 const _ACTION_FNS = {
@@ -1579,7 +1592,7 @@ const _ACTION_FNS = {
   openAddTaskModal, toggleCalendarTask, openCalendarTaskModal,
   toggleTaskCompletion, deleteTask, saveCalendarTask, deleteCalendarTask,
   saveSettings, testConnection, runEvaluation, clearEvaluationResults, clearAllData,
-  openSettings, linkTypeChanged, toggleSkillExpand,
+  openSettings, linkTypeChanged, toggleSkillExpand, toggleSidebarPanel,
 };
 function _delegatedEvent(e) {
   const el = e.target.closest('[data-action]');
@@ -1764,7 +1777,7 @@ export {
   startBreak, showTimerCompleteModal, updateTaskListForDay,
   endBreak, completeTimerWithLinking,
   completeTimerWithoutLinking, updateStats,
-  renderSkills, deleteTaskFromSkill, updateStatus, toggleTask, toggleSkillExpand,
+  renderSkills, deleteTaskFromSkill, updateStatus, toggleTask, toggleSkillExpand, toggleSidebarPanel,
   addSkill, updateSkill, deleteSkill, confirmDeleteSkill, addSkillTask,
   renderSchedule, ymd, monthLabel, loadCalendarTasks, renderCalendarView,
   switchCalendarView, openCalendarTaskModal, saveCalendarTask,

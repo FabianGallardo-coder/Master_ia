@@ -76,8 +76,10 @@ async function closeModalIfOpen(page) {
 test.describe('QA Visual — No Superposición de Paneles', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.goto(BASE);
-    await page.waitForLoadState('networkidle');
+    // 'load' instead of 'networkidle': the audio preload keeps a media request
+    // in-flight and checkOllama polls every 30s, so networkidle never settles.
+    // The expect() calls below auto-wait until the app finishes initializing.
+    await page.goto(BASE, { waitUntil: 'load' });
     // Ensure all main containers are present
     await expect(page.locator('.sidebar-left')).toBeVisible();
     await expect(page.locator('.main-content')).toBeVisible();

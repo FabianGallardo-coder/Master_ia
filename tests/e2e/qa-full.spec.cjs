@@ -31,12 +31,14 @@ test.describe('Temporizador', () => {
     await expect(btn).toHaveText('Pausar');
     await expect(page.locator('#timerPhase')).toContainText('Enfócate');
     await page.waitForTimeout(2500);
-    const t1 = await display.textContent();
 
+    // Leer el display DESPUÉS de confirmar la pausa: leerlo antes es una race
+    // (un tick puede caer entre la lectura y el clic en Pausar).
     await btn.click();
     await expect(btn).toHaveText('Continuar');
-    await page.waitForTimeout(1000);
-    await expect(display).toHaveText(t1);
+    const pausedText = await display.textContent();
+    await page.waitForTimeout(1200);
+    await expect(display).toHaveText(pausedText);
 
     await page.locator('#resetBtn').click();
     await expect(btn).toHaveText('Iniciar');

@@ -28,6 +28,9 @@
     "jest": "^30.4.2",
     "jest-environment-jsdom": "^30.4.1"
   },
+  "overrides": {
+    "keyv": "4.5.4"
+  },
   "build": {
     "appId": "com.maestro.ia",
     "productName": "Maestro IA",

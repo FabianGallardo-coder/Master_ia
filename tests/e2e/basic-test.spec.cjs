@@ -43,8 +43,15 @@ test.describe('Maestro IA Application', () => {
     await expect(skillsHeader).toContainText('Skills');
     const scheduleHeader = page.locator('.sidebar-right .sidebar-header h2');
     await expect(scheduleHeader).toContainText('Agenda');
+    // La vista "Día" muestra UN solo día para reducir carga cognitiva (TDAH),
+    // con navegación mediante los botones del encabezado de agenda.
     const dayColumns = page.locator('.day-column');
-    await expect(dayColumns).toHaveCount(3);
+    await expect(dayColumns).toHaveCount(1);
+    await expect(dayColumns.first()).toContainText('Hoy');
+    await page.locator('#calNext').click();
+    await expect(page.locator('.day-column')).toContainText('Mañana');
+    await page.locator('#calPrev').click();
+    await expect(page.locator('.day-column')).toContainText('Hoy');
   });
 
   test('should switch schedule between week and calendar views', async ({ page }) => {
