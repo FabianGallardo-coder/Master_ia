@@ -195,9 +195,16 @@
         .titlebar .energy-value { font-weight: var(--weight-bold); min-width: 18px; text-align: center; color: var(--color-text); font-size: 0.85rem; text-shadow: 0 0 8px var(--color-primary-glow); }
 
         @media (max-width: 600px) {
-            .titlebar { height: 48px; padding: 0 12px; }
-            .titlebar .energy-widget { display: none; }
-            .titlebar-center .energy-widget { display: flex; }
+            .titlebar { height: 48px; padding: 0 12px; gap: 8px; }
+            .titlebar-center { gap: 8px; min-width: 0; }
+            /* Energía compacta: se conserva el valor, se ocultan etiqueta y slider */
+            .titlebar .energy-widget { padding: 4px 10px; }
+            .titlebar .energy-label,
+            .titlebar .energy-slider { display: none; }
+            .titlebar .energy-value::before { content: '⚡'; margin-right: 2px; }
+            /* Ollama: solo el punto de estado (el texto no cabe sin overflow) */
+            .titlebar .ollama-status { flex-shrink: 1; min-width: 0; }
+            .titlebar .ollama-status #ollamaText { display: none; }
         }
 
         /* ── Glass utility ── */
@@ -1142,7 +1149,9 @@
         @media (max-width: 768px) {
             .schedule-grid { grid-template-columns: 1fr; }
             .skills-grid { grid-template-columns: 1fr; }
-            .mode-selector { flex-direction: column; align-items: stretch; }
+            /* align-self: stretch — sin esto el contenedor se encoge al botón
+               más ancho dentro de .timer-container (align-items: center) */
+            .mode-selector { flex-direction: column; align-items: stretch; align-self: stretch; }
             .mode-btn { text-align: left; }
         }
 
